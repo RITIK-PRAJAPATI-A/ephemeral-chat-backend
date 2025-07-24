@@ -1,0 +1,8 @@
+# Dependencies
+/node_modules
+
+# Local Baileys session data
+/auth_info_baileys/
+
+# Environment variables
+.env
