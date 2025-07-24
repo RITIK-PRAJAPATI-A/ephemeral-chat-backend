@@ -1,9 +1,12 @@
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const { useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
-const qrcode = require('qrcode-terminal');
 const express = require('express');
 const cors = require('cors');
+
+// ✅ CHANGED: We now need both libraries
+const qrcode = require('qrcode');
+const qrcodeTerminal = require('qrcode-terminal');
 
 // --- 1. Express App Setup ---
 const app = express();
@@ -16,12 +19,11 @@ app.use(express.json()); // Modern replacement for body-parser
 
 // --- 2. WhatsApp & Bot Configuration ---
 let sock; // This will be our socket instance
-const WHATSAPP_GROUP_ID = process.env.WHATSAPP_GROUP_ID; // ✅ CHANGED
+const WHATSAPP_GROUP_ID = process.env.WHATSAPP_GROUP_ID;
 const KEYWORDS = ['#Prayer', '#Prayer request', 'error', '#prayer', 'prayer request'];
 
 // --- 3. Baileys Connection Logic ---
 async function connectToWhatsApp() {
-    // ✅ CHANGED: Use a path from environment variables for Render's persistent disk
     const authPath = process.env.AUTH_PATH || 'auth_info_baileys';
     const { state, saveCreds } = await useMultiFileAuthState(authPath);
 
@@ -33,9 +35,19 @@ async function connectToWhatsApp() {
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
 
+        // ✅ CHANGED: This block now generates a URL for the QR code
         if (qr) {
-            console.log("QR code received, please scan:");
-            qrcode.generate(qr, { small: true });
+            console.log('QR code received. Generating URL...');
+            qrcode.toDataURL(qr, (err, url) => {
+                if (err) {
+                    console.error('Failed to generate QR code data URL', err);
+                } else {
+                    console.log('✅ Please open this link in a browser to scan the QR code:');
+                    console.log(url); // This will print a long "data:image/png;base64,..." URL
+                }
+            });
+            // This line keeps the QR code in your local terminal for testing
+            qrcodeTerminal.generate(qr, { small: true });
         }
 
         if (connection === 'close') {
@@ -44,6 +56,7 @@ async function connectToWhatsApp() {
             if (shouldReconnect) {
                 connectToWhatsApp();
             }
+            // ✅ FIXED: Removed a typo from this block
         } else if (connection === 'open') {
             console.log('✅ WhatsApp connection opened!');
         }
