@@ -4,7 +4,6 @@ const pino = require('pino');
 const express = require('express');
 const cors = require('cors');
 
-// ✅ CHANGED: We now need both libraries
 const qrcode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
 
@@ -13,12 +12,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-    origin: 'https://ephemeral-chat.netlify.app/' // Your Netlify frontend
+    origin: 'https://ephemeral-chat.netlify.app/'
 }));
-app.use(express.json()); // Modern replacement for body-parser
+app.use(express.json());
 
 // --- 2. WhatsApp & Bot Configuration ---
-let sock; // This will be our socket instance
+let sock;
 const WHATSAPP_GROUP_ID = process.env.WHATSAPP_GROUP_ID;
 const KEYWORDS = ['#Prayer', '#Prayer request', 'error', '#prayer', 'prayer request'];
 
@@ -35,7 +34,6 @@ async function connectToWhatsApp() {
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // ✅ CHANGED: This block now generates a URL for the QR code
         if (qr) {
             console.log('QR code received. Generating URL...');
             qrcode.toDataURL(qr, (err, url) => {
@@ -43,10 +41,9 @@ async function connectToWhatsApp() {
                     console.error('Failed to generate QR code data URL', err);
                 } else {
                     console.log('✅ Please open this link in a browser to scan the QR code:');
-                    console.log(url); // This will print a long "data:image/png;base64,..." URL
+                    console.log(url);
                 }
             });
-            // This line keeps the QR code in your local terminal for testing
             qrcodeTerminal.generate(qr, { small: true });
         }
 
@@ -56,7 +53,6 @@ async function connectToWhatsApp() {
             if (shouldReconnect) {
                 connectToWhatsApp();
             }
-            // ✅ FIXED: Removed a typo from this block
         } else if (connection === 'open') {
             console.log('✅ WhatsApp connection opened!');
         }
@@ -67,6 +63,9 @@ async function connectToWhatsApp() {
 
 // --- 4. Webhook Endpoint ---
 app.post('/incoming', async (req, res) => {
+    // ✅ THIS IS THE NEW LOGGING LINE
+    console.log('Received request on /incoming:', req.body);
+
     if (!sock || sock.user === undefined) {
         console.error('WhatsApp is not connected yet.');
         return res.status(503).json({ error: 'WhatsApp client not ready' });
@@ -80,6 +79,8 @@ app.post('/incoming', async (req, res) => {
     const found = KEYWORDS.find(k => text.toLowerCase().includes(k.toLowerCase()));
 
     if (!found) {
+        // Now you'll know why it's stopping here
+        console.log(`No keyword match found in: "${text}"`);
         return res.status(200).json({ message: 'No keyword match' });
     }
 
